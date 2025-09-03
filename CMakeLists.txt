@@ -4,9 +4,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.1)
+set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.1.1)
+set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -255,7 +255,8 @@ elseif (ZERO)
 elseif (ZERO2)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         PROJECT_VERSION="${VERSION}"
-        ZERO=1
+        ZERO2=1
+
         # VGA 8 pins starts from pin:
         VGA_BASE_PIN=32
 
@@ -288,8 +289,8 @@ elseif (ZERO2)
         NES_GPIO_DATA=9
         NES_GPIO_DATA2=10
 
-        BUTTER_PSRAM_GPIO=47
-      #  PSRAM
+        #BUTTER_PSRAM_GPIO=47
+        #PSRAM
         # PSRAM_MUTEX=1
         PSRAM_SPINLOCK=1
         PSRAM_ASYNC=1

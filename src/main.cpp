@@ -172,7 +172,7 @@ static void footer() {
     else
         draw_text("I(B) - try i2s sound (+L/R)                         ", 0, TEXTMODE_ROWS - 4, 7, 0);
     draw_text("Freq. - NumPad +/- 4MHz; Ins/Del - 40MHz            ", 0, TEXTMODE_ROWS - 3, 7, 0);
-#if SDCARD_INFO        
+#if SDCARD_INFO
     draw_text("F - Flash info; P - PSRAM; D - SD CARD              ", 0, TEXTMODE_ROWS - 2, 7, 0);
 #else
     draw_text("F - Flash info; P - PSRAM                           ", 0, TEXTMODE_ROWS - 2, 7, 0);
@@ -221,7 +221,7 @@ extern "C" {
         else if (ps2scancode == 0xB8) {
             altPressed = false;
         }
-#if SDCARD_INFO        
+#if SDCARD_INFO
         else if (ps2scancode == 0x20) { // D is down (SD CARD info)
             clrScr(0);
             y = 0;
@@ -391,7 +391,7 @@ static i2s_config_t i2s_config = {
     .dma_buf = 0,
     .volume = 0, // 16 - is 0
 };
-    
+
 static semaphore vga_start_semaphore;
 static uint16_t SCREEN[TEXTMODE_ROWS][80];
 
@@ -948,16 +948,18 @@ int main() {
     for(uint32_t pin = 0; pin < 28; ++pin) {
         links[pin] = testPins(pin, pin + 1);
     }
-#ifndef ZERO
+#if defined(ZERO) || defined(ZERO2)
+    SELECT_VGA = false; // HDMI only for now
+#else
     SELECT_VGA = (links[VGA_BASE_PIN] == 0) || (links[VGA_BASE_PIN] == 0x1F);
-    for(uint32_t pin = VGA_BASE_PIN; pin < VGA_BASE_PIN + 7; ++pin) {
-        if ((links[pin] & 0b000001) && (!SELECT_VGA || critical[pin])) {
+    for (uint32_t pin = VGA_BASE_PIN; pin < VGA_BASE_PIN + 7; ++pin)
+    {
+        if ((links[pin] & 0b000001) && (!SELECT_VGA || critical[pin]))
+        {
             blink(pin);
         }
     }
     sleep_ms(1000);
-#else
-    SELECT_VGA = false; // HDMI only for now
 #endif
 
     /// main test DONE signal
@@ -969,7 +971,7 @@ int main() {
     }
     FATFS fs;
     bool mount_passed = f_mount(&fs, "SD", 1) == FR_OK;
-    
+
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
@@ -1068,7 +1070,7 @@ int main() {
         goutf(y++, false, "FLASH %d MB; JEDEC ID: %02X-%02X-%02X-%02X",
                  flash_size >> 20, rx[0], rx[1], rx[2], rx[3]
         );
-    
+
         if (!isInterrupted()) {
 ///            printf("Test flash write ... ");
             if (write_flash()) {
@@ -1088,7 +1090,7 @@ int main() {
             psram_id(rx8);
             goutf(y++, false, "PSRAM %d MB; MFID: %02X KGD: %02X EID: %02X%02X-%02X%02X-%02X%02X",
                               psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]);
-    
+
             uint32_t a = 0;
             uint32_t elapsed;
             uint32_t begin = time_us_32();
@@ -1112,7 +1114,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, " 8-bit line read speed : %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 2) {
                 if (isInterrupted()) goto skip_it;
@@ -1121,7 +1123,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "16-bit line write speed: %f MBps", speed);
-       
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 2) {
                 if (isInterrupted()) goto skip_it;
@@ -1133,7 +1135,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "16-bit line read speed : %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 4) {
                 if (isInterrupted()) goto skip_it;
@@ -1142,7 +1144,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "32-bit line write speed: %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 4) {
                 if (isInterrupted()) goto skip_it;
@@ -1182,7 +1184,7 @@ skip_it:
 
     uint8_t ov = *(uint8_t*)&gamepad1_bits;
     while(true) {
-        #if SDCARD_INFO        
+        #if SDCARD_INFO
         if (pressed_key[HID_KEY_D]) { // D is down (SD CARD info)
             clrScr(0);
             y = 0;
@@ -1231,13 +1233,13 @@ skip_it:
                 i2s_init(&i2s_config);
                 for (int i = 0; i < samples; ++i) {
                     int16_t v = std::sin(2 * 3.1415296 * i / samples) * 32767;
-            
+
                     samplesL[i][0] = v;
                     samplesL[i][1] = 0;
-            
+
                     samplesR[i][0] = 0;
                     samplesR[i][1] = v;
-            
+
                     samplesLR[i][0] = v;
                     samplesLR[i][1] = v;
                 }
