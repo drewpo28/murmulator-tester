@@ -400,18 +400,19 @@ static inline bool hdmi_init() {
     //настройка side set
     sm_config_set_sideset_pins(&c_c,beginHDMI_PIN_clk);
     sm_config_set_sideset(&c_c, 2,false,false);
+
     for (int i = 0; i < 2; i++) {
         pio_gpio_init(PIO_VIDEO, beginHDMI_PIN_clk + i);
         gpio_set_drive_strength(beginHDMI_PIN_clk + i, GPIO_DRIVE_STRENGTH_12MA);
         gpio_set_slew_rate(beginHDMI_PIN_clk + i, GPIO_SLEW_RATE_FAST);
     }
 
-    pio_sm_set_pins_with_mask(PIO_VIDEO, SM_video, 3u << beginHDMI_PIN_clk, 3u << beginHDMI_PIN_clk);
-    pio_sm_set_pindirs_with_mask(PIO_VIDEO, SM_video, 3u << beginHDMI_PIN_clk, 3u << beginHDMI_PIN_clk);
+    uint64_t mask64 = (uint64_t)3u << beginHDMI_PIN_clk;
+    pio_sm_set_pins_with_mask64(PIO_VIDEO, SM_video, mask64, mask64);
+    pio_sm_set_pindirs_with_mask64(PIO_VIDEO, SM_video, mask64, mask64);
     //пины
 
     for (int i = 0; i < 6; i++) {
-        gpio_set_slew_rate(beginHDMI_PIN_data + i, GPIO_SLEW_RATE_FAST);
         pio_gpio_init(PIO_VIDEO, beginHDMI_PIN_data + i);
         gpio_set_drive_strength(beginHDMI_PIN_data + i, GPIO_DRIVE_STRENGTH_12MA);
         gpio_set_slew_rate(beginHDMI_PIN_data + i, GPIO_SLEW_RATE_FAST);
@@ -566,6 +567,10 @@ void graphics_set_buffer_hdmi(uint8_t* buffer, uint16_t width, uint16_t height) 
 
 //выделение и настройка общих ресурсов - 4 DMA канала, PIO программ и 2 SM
 void graphics_init_hdmi() {
+
+    pio_set_gpio_base(PIO_VIDEO, 16);
+    pio_set_gpio_base(PIO_VIDEO_ADDR, 16);
+
     //настройка PIO
     SM_video = pio_claim_unused_sm(PIO_VIDEO, true);
     SM_conv = pio_claim_unused_sm(PIO_VIDEO_ADDR, true);

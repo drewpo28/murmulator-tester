@@ -9,8 +9,6 @@ extern "C" {
 
 #include "hardware/pio.h"
 
-#define PIO_VIDEO pio0
-#define PIO_VIDEO_ADDR pio0
 #define VIDEO_DMA_IRQ (DMA_IRQ_0)
 
 #ifndef HDMI_BASE_PIN
@@ -18,11 +16,22 @@ extern "C" {
 #endif
 
 #if ZERO
+#define PIO_VIDEO pio0
+#define PIO_VIDEO_ADDR pio0
 #define HDMI_PIN_RGB_notBGR (0)
 #define HDMI_PIN_invert_diffpairs (0)
 #define beginHDMI_PIN_data (HDMI_BASE_PIN)
 #define beginHDMI_PIN_clk (HDMI_BASE_PIN+6)
+#elif defined(ZERO2)
+#define PIO_VIDEO pio0
+#define PIO_VIDEO_ADDR pio0
+#define HDMI_PIN_RGB_notBGR (0)
+#define HDMI_PIN_invert_diffpairs (0)
+#define beginHDMI_PIN_data (HDMI_BASE_PIN)
+#define beginHDMI_PIN_clk (HDMI_BASE_PIN + 6)
 #else
+#define PIO_VIDEO pio0
+#define PIO_VIDEO_ADDR pio0
 #define HDMI_PIN_RGB_notBGR (1)
 #define HDMI_PIN_invert_diffpairs (1)
 #define beginHDMI_PIN_data (HDMI_BASE_PIN+2)

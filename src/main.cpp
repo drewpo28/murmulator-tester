@@ -172,7 +172,7 @@ static void footer() {
     else
         draw_text("I(B) - try i2s sound (+L/R)                         ", 0, TEXTMODE_ROWS - 4, 7, 0);
     draw_text("Freq. - NumPad +/- 4MHz; Ins/Del - 40MHz            ", 0, TEXTMODE_ROWS - 3, 7, 0);
-#if SDCARD_INFO        
+#if SDCARD_INFO
     draw_text("F - Flash info; P - PSRAM; D - SD CARD              ", 0, TEXTMODE_ROWS - 2, 7, 0);
 #else
     draw_text("F - Flash info; P - PSRAM                           ", 0, TEXTMODE_ROWS - 2, 7, 0);
@@ -221,7 +221,7 @@ extern "C" {
         else if (ps2scancode == 0xB8) {
             altPressed = false;
         }
-#if SDCARD_INFO        
+#if SDCARD_INFO
         else if (ps2scancode == 0x20) { // D is down (SD CARD info)
             clrScr(0);
             y = 0;
@@ -391,7 +391,7 @@ static i2s_config_t i2s_config = {
     .dma_buf = 0,
     .volume = 0, // 16 - is 0
 };
-    
+
 static semaphore vga_start_semaphore;
 static uint16_t SCREEN[TEXTMODE_ROWS][80];
 
@@ -900,93 +900,96 @@ static const char* const desc[] = {
 #endif
 
 int main() {
-    auto scratch0 = watchdog_hw->scratch[0];
-    cpu = scratch0 & 0x03FF;
-    vol = (scratch0 & 0xFC00) >> 22;
-    if (!cpu) cpu = 252;
-    if (!vol) vol = VREG_VOLTAGE_1_60; // VREG_VOLTAGE_1_30;
+//     auto scratch0 = watchdog_hw->scratch[0];
+//     cpu = scratch0 & 0x03FF;
+//     vol = (scratch0 & 0xFC00) >> 22;
+// //     if (!cpu) cpu = 252;
+// //     if (!vol) vol = VREG_VOLTAGE_1_60; // VREG_VOLTAGE_1_30;
 
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+//     gpio_init(PICO_DEFAULT_LED_PIN);
+//     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
     stdio_init_all();
 
-    if (vol > VREG_VOLTAGE_1_30)
-#if PICO_RP2040
-        vol = VREG_VOLTAGE_1_30;
-#else
-        vreg_disable_voltage_limit();
-#endif
-    vreg_set_voltage((vreg_voltage)vol);
+    vreg_set_voltage(VREG_VOLTAGE_1_10);
     vol = vreg_get_voltage();
     sleep_ms(33);
-    uint vco, postdiv1, postdiv2;
-    if (check_sys_clock_khz(cpu * KHZ, &vco, &postdiv1, &postdiv2)) {
-        set_sys_clock_pll(vco, postdiv1, postdiv2);
-    } else {
-        cpu = clock_get_hz(clk_sys) / (KHZ * KHZ);
-    }
+    // uint vco, postdiv1, postdiv2;
+    // if (check_sys_clock_khz(cpu * KHZ, &vco, &postdiv1, &postdiv2)) {
+    //     set_sys_clock_pll(vco, postdiv1, postdiv2);
+    // } else {
+    //     cpu = clock_get_hz(clk_sys) / (KHZ * KHZ);
+    // }
+    set_sys_clock_khz(252000, true);
 
-#if PICO_RP2350
-#ifdef BUTTER_PSRAM_GPIO
-    psram_init(BUTTER_PSRAM_GPIO);
-#endif
-#endif
+// #if PICO_RP2350
+// #ifdef BUTTER_PSRAM_GPIO
+//     psram_init(BUTTER_PSRAM_GPIO);
+// #endif
+// #endif
 
-    /// startup signal
-    for (int i = 0; i < 2; i++) {
-        sleep_ms(short_light);
-        gpio_put(PICO_DEFAULT_LED_PIN, true);
-        sleep_ms(short_light);
-        gpio_put(PICO_DEFAULT_LED_PIN, false);
-    }
-#ifndef ZERO
-    sleep_ms(1000);
-#endif
+//     /// startup signal
+//     for (int i = 0; i < 2; i++) {
+//         sleep_ms(short_light);
+//         gpio_put(PICO_DEFAULT_LED_PIN, true);
+//         sleep_ms(short_light);
+//         gpio_put(PICO_DEFAULT_LED_PIN, false);
+//     }
+// #ifndef ZERO
+//     sleep_ms(1000);
+// #endif
 
-    int links[27] = { false };
-    for(uint32_t pin = 0; pin < 28; ++pin) {
-        links[pin] = testPins(pin, pin + 1);
-    }
-#ifndef ZERO
-    SELECT_VGA = (links[VGA_BASE_PIN] == 0) || (links[VGA_BASE_PIN] == 0x1F);
-    for(uint32_t pin = VGA_BASE_PIN; pin < VGA_BASE_PIN + 7; ++pin) {
-        if ((links[pin] & 0b000001) && (!SELECT_VGA || critical[pin])) {
+//     int links[27] = { false };
+//     for(uint32_t pin = 0; pin < 28; ++pin) {
+//         links[pin] = testPins(pin, pin + 1);
+//     }
+#if defined(ZERO) || defined(ZERO2)
+        SELECT_VGA = false; // HDMI only for now
+#else
+        SELECT_VGA = (links[VGA_BASE_PIN] == 0) || (links[VGA_BASE_PIN] == 0x1F);
+    for (uint32_t pin = VGA_BASE_PIN; pin < VGA_BASE_PIN + 7; ++pin)
+    {
+        if ((links[pin] & 0b000001) && (!SELECT_VGA || critical[pin]))
+        {
             blink(pin);
         }
     }
     sleep_ms(1000);
-#else
-    SELECT_VGA = false; // HDMI only for now
 #endif
 
-    /// main test DONE signal
-    for (int i = 0; i < 4; i++) {
-        sleep_ms(short_light);
-        gpio_put(PICO_DEFAULT_LED_PIN, true);
-        sleep_ms(short_light);
-        gpio_put(PICO_DEFAULT_LED_PIN, false);
-    }
-    FATFS fs;
-    bool mount_passed = f_mount(&fs, "SD", 1) == FR_OK;
-    
-    sem_init(&vga_start_semaphore, 0, 1);
-    multicore_launch_core1(render_core);
-    sem_release(&vga_start_semaphore);
+    // /// main test DONE signal
+    // for (int i = 0; i < 4; i++) {
+    //     sleep_ms(short_light);
+    //     gpio_put(PICO_DEFAULT_LED_PIN, true);
+    //     sleep_ms(short_light);
+    //     gpio_put(PICO_DEFAULT_LED_PIN, false);
+    // }
 
-    sleep_ms(550);
+    // FATFS fs;
+    // bool mount_passed = f_mount(&fs, "SD", 1) == FR_OK;
 
-    goutf(y++, false, PROJECT_VERSION " started on " PLAT " with %d MHz (%d:%d:%d) %s", cpu, vco / (KHZ * KHZ), postdiv1, postdiv2, get_volt());
-/*
-    static const int vga_disconnected[7]    = { 0x1F, 0x1A, 0x1F, 0x1A, 0x1F, 0x1A, 0x1A };
-    static const int vga_connected[7]       = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-    static const int frank_disconnected[7]  = { 0x1F, 0x1A, 0x1F, 0x1A, 0x1F, 0x1A, 0x1A };
+        setup_default_uart();
 
-    static const int frank_hdmi_vga[7]      = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E };
-    static const int hdmi_connected[7]      = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x18, 0x06? };
-    static const int frank_hdmi_connected[] = { 0x21, 0x00, 0x21, 0x00, 0x21, 0x00, 0x21 };
-*/
-    for(uint32_t pin = 0; pin < 28; ++pin) {
+        pio_set_gpio_base(pio0, 16);
+
+        sem_init(&vga_start_semaphore, 0, 1);
+        multicore_launch_core1(render_core);
+        sem_release(&vga_start_semaphore);
+
+        sleep_ms(550);
+
+        // goutf(y++, false, PROJECT_VERSION " started on " PLAT " with %d MHz (%d:%d:%d) %s", cpu, vco / (KHZ * KHZ), postdiv1, postdiv2, get_volt());
+        /*
+            static const int vga_disconnected[7]    = { 0x1F, 0x1A, 0x1F, 0x1A, 0x1F, 0x1A, 0x1A };
+            static const int vga_connected[7]       = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            static const int frank_disconnected[7]  = { 0x1F, 0x1A, 0x1F, 0x1A, 0x1F, 0x1A, 0x1A };
+
+            static const int frank_hdmi_vga[7]      = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E };
+            static const int hdmi_connected[7]      = { 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x18, 0x06? };
+            static const int frank_hdmi_connected[] = { 0x21, 0x00, 0x21, 0x00, 0x21, 0x00, 0x21 };
+        */
+        for (uint32_t pin = 0; pin < 28; ++pin)
+        {
 #if DEBUG
         if (links[pin]) {
             bool cs      = !!(links[pin] & 0b100000);
@@ -1001,18 +1004,18 @@ int main() {
                 goutf(y++, false, "GPIO %02d not connected to %02d %d[%d%d->%d%d]", pin, pin + 1, cs, pin0vPD, pin0vPU, pin1vPD, pin1vPU);
         }
 #else
-        if (links[pin] & 1) {
-            goutf(y++, critical[pin], "GPIO %02d connected to %02d (%d) %s", pin, pin + 1, !!(links[pin] & 0b100000), desc[pin]);
-        }
+        // if (links[pin] & 1) {
+        //     goutf(y++, critical[pin], "GPIO %02d connected to %02d (%d) %s", pin, pin + 1, !!(links[pin] & 0b100000), desc[pin]);
+        // }
 #endif
     }
 
-    draw_text("Init SDCARD", 0, TEXTMODE_ROWS - 1, 7, 0);
-    if (mount_passed) {
-        goutf(y++, false, "SDCARD %d FATs; %d free clusters (%d KB each)", fs.n_fats, f_getfree32(&fs), fs.csize >> 1);
-    } else {
-        draw_text("SDCARD not connected", 0, y++, 12, 0);
-    }
+    // draw_text("Init SDCARD", 0, TEXTMODE_ROWS - 1, 7, 0);
+    // if (mount_passed) {
+    //     goutf(y++, false, "SDCARD %d FATs; %d free clusters (%d KB each)", fs.n_fats, f_getfree32(&fs), fs.csize >> 1);
+    // } else {
+    //     draw_text("SDCARD not connected", 0, y++, 12, 0);
+    // }
 
     draw_text("Init keyboard", 0, TEXTMODE_ROWS - 1, 7, 0);
     tuh_init(BOARD_TUH_RHPORT);
@@ -1068,7 +1071,7 @@ int main() {
         goutf(y++, false, "FLASH %d MB; JEDEC ID: %02X-%02X-%02X-%02X",
                  flash_size >> 20, rx[0], rx[1], rx[2], rx[3]
         );
-    
+
         if (!isInterrupted()) {
 ///            printf("Test flash write ... ");
             if (write_flash()) {
@@ -1088,7 +1091,7 @@ int main() {
             psram_id(rx8);
             goutf(y++, false, "PSRAM %d MB; MFID: %02X KGD: %02X EID: %02X%02X-%02X%02X-%02X%02X",
                               psram32 >> 20, rx8[0], rx8[1], rx8[2], rx8[3], rx8[4], rx8[5], rx8[6], rx8[7]);
-    
+
             uint32_t a = 0;
             uint32_t elapsed;
             uint32_t begin = time_us_32();
@@ -1112,7 +1115,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, " 8-bit line read speed : %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 2) {
                 if (isInterrupted()) goto skip_it;
@@ -1121,7 +1124,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "16-bit line write speed: %f MBps", speed);
-       
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 2) {
                 if (isInterrupted()) goto skip_it;
@@ -1133,7 +1136,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "16-bit line read speed : %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 4) {
                 if (isInterrupted()) goto skip_it;
@@ -1142,7 +1145,7 @@ int main() {
             elapsed = time_us_32() - begin;
             speed = d * a / elapsed;
             goutf(y++, false, "32-bit line write speed: %f MBps", speed);
-        
+
             begin = time_us_32();
             for (a = 0; a < psram32; a += 4) {
                 if (isInterrupted()) goto skip_it;
@@ -1182,7 +1185,7 @@ skip_it:
 
     uint8_t ov = *(uint8_t*)&gamepad1_bits;
     while(true) {
-        #if SDCARD_INFO        
+        #if SDCARD_INFO
         if (pressed_key[HID_KEY_D]) { // D is down (SD CARD info)
             clrScr(0);
             y = 0;
@@ -1231,13 +1234,13 @@ skip_it:
                 i2s_init(&i2s_config);
                 for (int i = 0; i < samples; ++i) {
                     int16_t v = std::sin(2 * 3.1415296 * i / samples) * 32767;
-            
+
                     samplesL[i][0] = v;
                     samplesL[i][1] = 0;
-            
+
                     samplesR[i][0] = 0;
                     samplesR[i][1] = v;
-            
+
                     samplesLR[i][0] = v;
                     samplesLR[i][1] = v;
                 }
